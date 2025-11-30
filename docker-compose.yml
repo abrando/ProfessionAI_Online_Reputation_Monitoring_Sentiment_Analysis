@@ -1,0 +1,17 @@
+services:
+  sentiment-api:
+    build: .
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Install Infinity datasource plugin
+      GF_INSTALL_PLUGINS: "yesoreyeram-infinity-datasource"
+    depends_on:
+      - sentiment-api
+    restart: unless-stopped

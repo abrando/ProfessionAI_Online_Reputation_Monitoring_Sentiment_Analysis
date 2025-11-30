@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+scikit-learn
+
+transformers
+torch
+datasets
+evaluate
+accelerate
+huggingface_hub
+
+pydantic
+requests
+
+pytest
+
+datasets
