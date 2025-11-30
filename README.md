@@ -69,16 +69,21 @@ Model characteristics:
 ```text
 .
 ├── src
-│   ├── app.py           # FastAPI app (predict + stats)
-│   ├── model.py         # Loads HuggingFace RoBERTa model
-│   ├── predict.py       # Inference logic
-│   ├── monitoring.py    # In-memory monitoring for Grafana Infinity
-│   ├── train.py         # (Optional) fine-tuning script
-│   └── data.py          # Dataset utilities
+│   ├── app.py
+│   ├── model.py
+│   ├── predict.py
+│   ├── monitoring.py
+│   ├── train.py
+│   └── data.py
 │
-├── docker-compose.yml    # FastAPI + Grafana
-├── Dockerfile            # API container
+├── docker-compose.yml
+├── Dockerfile
 ├── requirements.txt
-├── tests/                # Unit tests
-├── monitoring/           # (Optional) grafana provisioning
-└── README.md
+├── README.md
+├── tests/
+│
+├── .github
+    └── workflows
+        ├── ci.yml                # CI pipeline (tests + linting)
+        ├── docker-publish.yml    # Build & publish Docker image
+        └── deploy_hf.yml         # Optional: deploy model to HuggingFace
