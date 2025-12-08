@@ -1,42 +1,52 @@
-from typing import List, Dict
+# src/predict.py
+"""
+Prediction logic.
+
+This module defines functions that run sentiment analysis on single
+texts or lists of texts. It is independent from FastAPI so it can be
+reused from tests.
+"""
+
+from typing import Dict, List
+
 from .model import load_sentiment_pipeline
-
-# Mapping model-specific labels to normalized labels
-LABEL_MAP = {
-    "LABEL_0": "negative",
-    "LABEL_1": "neutral",
-    "LABEL_2": "positive",
-    "Negative": "negative",
-    "Neutral": "neutral",
-    "Positive": "positive",
-}
-
-clf = None  # Lazy-loaded pipeline
+from .monitoring import record_prediction
 
 
-def get_pipeline():
-    """Load sentiment pipeline only once."""
-    global clf
-    if clf is None:
-        clf = load_sentiment_pipeline()
-    return clf
+def predict_single(text: str) -> Dict:
+    """Predict sentiment for a single text using the HF pipeline.
+    Returns:
+        A dictionary with:
+        - label: predicted top sentiment (e.g. "positive")
+        - score: confidence score for the top label
+        - probabilities: dict with all labels and their scores
+    """
+    sentiment_pipeline = load_sentiment_pipeline()
+
+    # Pipeline returns: [[{"label": "...", "score": ...}, ...]]
+    outputs = sentiment_pipeline(text)[0]
+
+    # Normalize labels to lowercase for consistency
+    probabilities = {
+        item["label"].lower(): float(item["score"]) for item in outputs
+    }
+
+    # Select the label with highest score
+    top_label = max(probabilities, key=probabilities.get)
+    top_score = probabilities[top_label]
+
+    # Record for time-series monitoring and future Grafana dashboards
+    record_prediction(label=top_label, score=top_score, text=text)
+
+    return {
+        "label": top_label,
+        "score": top_score,
+        "probabilities": probabilities,
+    }
 
 
-def normalize_label(label: str) -> str:
-    """Normalize labels returned by HuggingFace."""
-    return LABEL_MAP.get(label, label.lower())
-
-
-def predict_sentiment(texts: List[str]) -> List[Dict]:
-    """Run prediction and return normalized outputs."""
-    pipe = get_pipeline()
-    outputs = pipe(texts)
-
-    results = []
-    for out in outputs:
-        best = max(out, key=lambda x: x["score"]) if isinstance(out, list) else out
-        results.append({
-            "label": normalize_label(best["label"]),
-            "score": float(best["score"])
-        })
-    return results
+def predict_batch(texts: List[str]) -> List[Dict]:
+    """
+    Batch prediction over a list of texts.
+    """
+    return [predict_single(t) for t in texts]

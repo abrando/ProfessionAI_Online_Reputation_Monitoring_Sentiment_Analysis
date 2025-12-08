@@ -1,53 +1,71 @@
 # ProfessionAI_Online_Reputation_Monitoring_Sentiment_Analysis
 ProfessionAI Master AI Engineering. Progetto per il corso "MLOps e Machine Learning in Produzione"
 
+# MachineInnovators – Online Reputation Monitoring
 
-# MachineInnovators – Online Reputation Monitoring  
-### Sentiment Analysis • FastAPI • Docker • Grafana (Infinity Plugin) • MLOps Pipeline
+### Sentiment Analysis • FastAPI • MLOps • Grafana (Infinity) • Apache Airflow • Hugging Face
 
-This project implements a complete system for **online reputation monitoring** through automated **sentiment analysis** of social media text.  
-It uses **RoBERTa**, **FastAPI**, **Docker**, and **Grafana Infinity datasource** for Grafana monitoring.
+This project implements a complete Online Reputation Monitoring System using sentiment analysis on social media text.  
+It is the final coursework for the *ProfessionAI Master in AI Engineering* (MLOps & Machine Learning in Production).
 
-The system is designed as an **MLOps-ready pipeline**, supporting:
-- Sentiment model inference via API  
-- Containerized deployment  
-- Real-time monitoring dashboards  
-- Simple retraining workflow  
-- CI/CD integration with GitHub Actions  
-
----
-
-# 1 - Project Objective
-
-Companies must track social media sentiment to maintain a positive online reputation.  
-Manual monitoring is slow, expensive, and unreliable.
-
-This project enables:
-
-- Automated classification of user sentiment  
-- Continuous monitoring via Grafana dashboards  
-- FastAPI-based inference API for easy integration  
-- A retraining-ready architecture  
-- Containerized deployment for scalability  
-- Grafana Monitoring.
+The system demonstrates production-ready MLOps practices:
+- Pretrained Hugging Face sentiment model
+- FastAPI inference service
+- Time-series monitoring endpoints
+- Grafana dashboards via Infinity plugin
+- Scheduled retraining logic (stub) via GitHub Actions and Apache Airflow
+- Dockerized architecture
 
 ---
 
-# 2 - System Architecture
-            ┌──────────────────────┐
-            │  Social Media Input  │
-            └───────────┬──────────┘
-                        │ (texts)
+## 1. Project Goal
+
+MachineInnovators Inc. requires a scalable system to automatically analyze and track sentiment from social media.  
+This project provides:
+
+- Automated sentiment classification  
+- Continuous monitoring of trends  
+- Retraining pipeline planning when new labeled data appears  
+- Integration with CI, orchestration tools, monitoring interfaces
+
+---
+
+## 2. Architecture Overview
+
+---
+
+## 2. Architecture Overview
+
+```text
+        ┌──────────────────────────────┐
+        │   Social Media Platforms     │
+        └───────────────┬──────────────┘
+                        │ text
                         ▼
-              ┌───────────────────┐
-              │ FastAPI Inference │  ← Docker container
-              └───────────┬───────┘
-                 /predict │
-                 /stats   ▼
-         ┌───────────────────────────┐
-         │ Grafana (Infinity Plugin) │  ← pulls JSON from /stats
-         │  → Dashboards & Alerts    │
-         └───────────────────────────┘
+              ┌──────────────────────┐
+              │ FastAPI Inference API│
+              │ /predict /stats      │
+              └──────────┬───────────┘
+                         │ JSON metrics
+                         ▼
+       ┌─────────────────────────────────────┐
+       │ Grafana (Infinity Data Source)      │
+       │ Time-series dashboards & alerts     │
+       └─────────────────────────────────────┘
+                         │ 
+                         ▼
+       ┌───────────────────────────────────────┐
+       │ Apache Airflow (MLOps orchestration)  │
+       │ Weekly retraining DAG (stub)          │
+       └───────────────────────────────────────┘
+                         │
+                         ▼
+      ┌─────────────────────────────────────┐
+      │ GitHub Actions                      │
+      │ - CI pipeline                       │
+      │ - Scheduled retraining check        │
+      └─────────────────────────────────────┘
+
 
 **Grafana Infinity datasource** directly queries the `/stats` endpoint of FastAPI.  
 
@@ -68,22 +86,31 @@ Model characteristics:
 
 ```text
 .
-├── src
-│   ├── app.py
-│   ├── model.py
-│   ├── predict.py
-│   ├── monitoring.py
-│   ├── train.py
-│   └── data.py
+├── src/
+│   ├── app.py                # FastAPI endpoints
+│   ├── model.py              # Hugging Face pipeline loader
+│   ├── predict.py            # Prediction logic
+│   ├── monitoring.py         # Time-series monitoring layer
+│   ├── data.py               # Load new labeled data
+│   └── retrain.py            # Retraining plan
 │
-├── docker-compose.yml
+├── airflow/
+│   └── dags/
+│       └── sentiment_retraining_dag.py   # Airflow weekly retraining DAG
+│
+├── data/
+│   ├── monitoring/sentiment_log.csv      # Time-series log of predictions
+│   └── new/                              # Future labeled datasets
+│
+├── tests/
+│   └── test_predict.py
+│
 ├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 ├── README.md
-├── tests/
-│
-├── .github
-    └── workflows
-        ├── ci.yml                # CI pipeline (tests + linting)
-        ├── docker-publish.yml    # Build & publish Docker image
-        └── deploy_hf.yml         # Optional: deploy model to HuggingFace
+└── .github/
+    └── workflows/
+        ├── ci.yml             # tests + lint
+        ├── deploy_hf.yml      # optional deploy to HuggingFace
+        └── retrain.yml        # scheduled retraining check
