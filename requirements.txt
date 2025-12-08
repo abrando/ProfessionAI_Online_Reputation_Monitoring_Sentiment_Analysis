@@ -3,7 +3,6 @@ uvicorn
 scikit-learn
 
 transformers
-torch
 datasets
 evaluate
 accelerate
