@@ -5,6 +5,7 @@ colorFrom: blue
 colorTo: purple
 sdk: docker
 pinned: false
+app_port: 7860
 ---
 
 # ProfessionAI_Online_Reputation_Monitoring_Sentiment_Analysis

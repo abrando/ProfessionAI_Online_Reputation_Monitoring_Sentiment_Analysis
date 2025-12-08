@@ -12,4 +12,4 @@ COPY src ./src
 EXPOSE 7860
 
 # Start FastAPI app
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "7860"]
