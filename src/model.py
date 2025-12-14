@@ -6,12 +6,13 @@ This module is responsible for loading the pretrained sentiment model
 from Hugging Face and exposing a simple pipeline.
 """
 
+from functools import lru_cache
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 
 # Pretrained sentiment model for Twitter
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
-
+@lru_cache(maxsize=1)
 def load_sentiment_pipeline():
     """
     Load HuggingFace tokenizer/model and create a cached pipeline.

@@ -1,16 +1,16 @@
 fastapi
 uvicorn
+
 scikit-learn
+numpy
+pandas
+torch
 
 transformers
 datasets
-evaluate
-accelerate
-huggingface_hub
 
 pydantic
 requests
 
 pytest
-
-datasets
+flake8

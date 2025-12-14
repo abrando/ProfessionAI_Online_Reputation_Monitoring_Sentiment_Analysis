@@ -1,116 +1,110 @@
-# src/monitoring.py
-"""
-Monitoring utilities.
+from __future__ import annotations
 
-This module implements a simple time-series style monitoring layer:
-- each prediction is logged with a timestamp in a CSV file;
-- an in-memory state is kept for quick access by the /stats endpoint;
-- the /stats JSON is designed to be consumed by Grafana Infinity as
-  a time series (`time_series` field).
-"""
-
-from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from pathlib import Path
-from typing import Dict, List, Literal
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 import csv
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
-SentimentLabel = Literal["negative", "neutral", "positive"]
-
-
-LOG_DIR = Path("data/monitoring")
-LOG_FILE = LOG_DIR / "sentiment_log.csv"
+SENTIMENT_LOG = REPO_ROOT / "data" / "monitoring" / "sentiment_log.csv"
+MODEL_EVAL_LOG = REPO_ROOT / "data" / "monitoring" / "model_eval.csv"
 
 
-@dataclass
-class SentimentEvent:
-    """Represents a single prediction event in time."""
-    timestamp: datetime
-    text_length: int
-    label: SentimentLabel
-    score: float
+# ---------- write: used by predict.py ----------
+def record_prediction(label: str, score: float, text: str) -> None:
+    """
+    Appende una riga al CSV di monitoring.
+    Questo è chiamato da predict_single / predict_batch.
+    """
+    SENTIMENT_LOG.parent.mkdir(parents=True, exist_ok=True)
 
-
-@dataclass
-class MonitoringState:
-    """Minimal in-memory monitoring state (process-local)."""
-    total_requests: int = 0
-    label_counts: Dict[SentimentLabel, int] = field(
-        default_factory=lambda: {"negative": 0, "neutral": 0, "positive": 0}
-    )
-    recent_events: List[SentimentEvent] = field(default_factory=list)
-    max_recent_events: int = 1000  # sliding window size
-
-
-_state = MonitoringState()
-
-
-def _ensure_log_file_exists() -> None:
-    """Create the log directory and CSV file (with header) if needed."""
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    if not LOG_FILE.exists():
-        with LOG_FILE.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["timestamp", "text_length", "label", "score"])
-
-
-def record_prediction(label: SentimentLabel, score: float, text: str) -> None:
-    """Record a prediction event both in memory and on disk."""
-    _state.total_requests += 1
-    if label in _state.label_counts:
-        _state.label_counts[label] += 1
-
-    event = SentimentEvent(
-        timestamp=datetime.now(UTC),
-        text_length=len(text),
-        label=label,
-        score=score,
-    )
-
-    # Sliding window in memory
-    _state.recent_events.append(event)
-    if len(_state.recent_events) > _state.max_recent_events:
-        _state.recent_events.pop(0)
-
-    # Persistent CSV time-series log
-    _ensure_log_file_exists()
-    with LOG_FILE.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
+    file_exists = SENTIMENT_LOG.exists()
+    with SENTIMENT_LOG.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["timestamp_utc", "label", "score", "text"])
+        if not file_exists:
+            writer.writeheader()
         writer.writerow(
-            [
-                event.timestamp.isoformat(),
-                event.text_length,
-                event.label,
-                f"{event.score:.4f}",
-            ]
+            {
+                "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "label": label,
+                "score": float(score),
+                "text": text,
+            }
         )
 
 
-def get_stats() -> Dict:
-    """Return monitoring stats in a Grafana-friendly JSON structure."""
-    if _state.total_requests == 0:
-        label_distribution = {k: 0.0 for k in _state.label_counts.keys()}
-    else:
-        label_distribution = {
-            label: count / _state.total_requests
-            for label, count in _state.label_counts.items()
-        }
+# ---------- read helpers ----------
+def _read_csv_tail(path: Path, limit: int) -> List[Dict[str, Any]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+    return rows[-limit:] if rows else []
 
-    # Time-series data: recent events with timestamps
-    time_series = [
-        {
-            "timestamp": e.timestamp.isoformat(),
-            "text_length": e.text_length,
-            "label": e.label,
-            "score": e.score,
-        }
-        for e in _state.recent_events[-500:]
-    ]
 
+# ---------- sentiment: for /stats ----------
+def load_sentiment_series(limit: int = 500):
+    rows = _read_csv_tail(SENTIMENT_LOG, limit)
+    for r in rows:
+        try:
+            r["score"] = float(r["score"])
+        except (KeyError, TypeError, ValueError):
+            # Se score non è convertibile, metti None e non rompere /stats
+            r["score"] = None
+    return rows
+
+def load_sentiment_summary() -> Dict[str, Any]:
+    rows = _read_csv_tail(SENTIMENT_LOG, 10_000_000)  # “tutto”
+    if not rows:
+        return {}
+
+    counts: Dict[str, int] = {}
+    for r in rows:
+        lab = r.get("label")
+        if lab:
+            counts[lab] = counts.get(lab, 0) + 1
+
+    return {"total_predictions": int(len(rows)), "by_label": counts}
+
+
+# ---------- model eval: for /stats ----------
+def load_model_eval_latest() -> Optional[Dict[str, Any]]:
+    rows = _read_csv_tail(MODEL_EVAL_LOG, 1)
+    if not rows:
+        return None
+    last = rows[0]
+    # cast
+    if "accuracy" in last and last["accuracy"] not in (None, ""):
+        last["accuracy"] = float(last["accuracy"])
+    if "macro_f1" in last and last["macro_f1"] not in (None, ""):
+        last["macro_f1"] = float(last["macro_f1"])
+    if "n_samples" in last and last["n_samples"] not in (None, ""):
+        last["n_samples"] = int(float(last["n_samples"]))
+    return last
+
+
+def load_model_eval_series(limit: int = 200) -> List[Dict[str, Any]]:
+    rows = _read_csv_tail(MODEL_EVAL_LOG, limit)
+    for r in rows:
+        if "accuracy" in r and r["accuracy"] not in (None, ""):
+            r["accuracy"] = float(r["accuracy"])
+        if "macro_f1" in r and r["macro_f1"] not in (None, ""):
+            r["macro_f1"] = float(r["macro_f1"])
+        if "n_samples" in r and r["n_samples"] not in (None, ""):
+            r["n_samples"] = int(float(last_float := float(r["n_samples"])))
+    return rows
+
+
+def build_stats_payload() -> Dict[str, Any]:
     return {
-        "total_requests": _state.total_requests,
-        "label_counts": _state.label_counts,
-        "label_distribution": label_distribution,
-        "time_series": time_series,
+        "sentiment": {
+            "summary": load_sentiment_summary(),
+            "series": load_sentiment_series(),
+        },
+        "model_eval": {
+            "latest": load_model_eval_latest(),
+            "series": load_model_eval_series(),
+        },
     }

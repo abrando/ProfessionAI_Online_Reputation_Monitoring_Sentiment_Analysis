@@ -14,8 +14,8 @@ from typing import List
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from .monitoring import get_stats
 from .predict import predict_batch, predict_single
+from .monitoring import build_stats_payload
 
 
 class PredictRequest(BaseModel):
@@ -71,4 +71,4 @@ def predict_batch_endpoint(request: PredictBatchRequest) -> PredictBatchResponse
 @app.get("/stats")
 def stats() -> dict:
     """Return monitoring statistics for Grafana Infinity."""
-    return get_stats()
+    return build_stats_payload()
