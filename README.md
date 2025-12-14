@@ -42,11 +42,6 @@ This project provides:
 
 ## 2. Architecture Overview
 
----
-
-## 2. Architecture Overview
-
-```text
         ┌──────────────────────────────┐
         │   Social Media Platforms     │
         └───────────────┬──────────────┘
