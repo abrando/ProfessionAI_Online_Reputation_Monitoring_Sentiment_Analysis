@@ -58,7 +58,7 @@ def print_retraining_plan(files: List[Path], dfs: List[pd.DataFrame]) -> None:
     print("")
 
 
-#helpers
+# helpers
 def _load_all_dfs(files: List[Path]) -> List[pd.DataFrame]:
     """Load each CSV into a DataFrame using load_labeled_data."""
     dfs = []
