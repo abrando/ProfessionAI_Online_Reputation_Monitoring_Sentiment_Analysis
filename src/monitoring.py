@@ -124,11 +124,15 @@ def build_stats_payload() -> Dict[str, Any]:
 
     return {
         "total_requests": sentiment_counts.get("total", 0),
+
+        "label_counts": sentiment_counts,
+
         "sentiment": {
             "summary": load_sentiment_summary(),
             "series": load_sentiment_series(),
         },
-        "sentiment_counts": sentiment_counts,
+        "sentiment_counts": sentiment_counts, 
+
         "model_eval": {
             "latest": load_model_eval_latest(),
             "series": load_model_eval_series(),
