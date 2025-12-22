@@ -1,3 +1,4 @@
+# src/monitoring.py
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,7 +28,7 @@ def record_prediction(label: str, score: float, text: str) -> None:
         writer.writerow(
             {
                 "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "label": label,
+                "label": (label or "").lower(),  # normalize
                 "score": float(score),
                 "text": text,
             }
@@ -63,11 +64,31 @@ def load_sentiment_summary() -> Dict[str, Any]:
 
     counts: Dict[str, int] = {}
     for r in rows:
-        lab = r.get("label")
+        lab = (r.get("label") or "").lower()
         if lab:
             counts[lab] = counts.get(lab, 0) + 1
 
     return {"total_predictions": int(len(rows)), "by_label": counts}
+
+
+def load_sentiment_counts() -> Dict[str, int]:
+    """
+    Contatori semplici (Grafana-friendly):
+    sentiment_counts.positive / neutral / negative / total
+    """
+    summary = load_sentiment_summary()
+    by_label = summary.get("by_label") or {}
+
+    positive = int(by_label.get("positive", 0))
+    neutral = int(by_label.get("neutral", 0))
+    negative = int(by_label.get("negative", 0))
+
+    return {
+        "positive": positive,
+        "neutral": neutral,
+        "negative": negative,
+        "total": int(positive + neutral + negative),
+    }
 
 
 # ---------- model eval: for /stats ----------
@@ -94,7 +115,7 @@ def load_model_eval_series(limit: int = 200) -> List[Dict[str, Any]]:
         if "macro_f1" in r and r["macro_f1"] not in (None, ""):
             r["macro_f1"] = float(r["macro_f1"])
         if "n_samples" in r and r["n_samples"] not in (None, ""):
-            r["n_samples"] = int(["n_samples"])
+            r["n_samples"] = int(float(r["n_samples"]))
     return rows
 
 
@@ -104,6 +125,7 @@ def build_stats_payload() -> Dict[str, Any]:
             "summary": load_sentiment_summary(),
             "series": load_sentiment_series(),
         },
+        "sentiment_counts": load_sentiment_counts(),  # <-- semplice per Grafana
         "model_eval": {
             "latest": load_model_eval_latest(),
             "series": load_model_eval_series(),
