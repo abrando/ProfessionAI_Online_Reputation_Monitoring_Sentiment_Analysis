@@ -132,7 +132,7 @@ def build_stats_payload() -> Dict[str, Any]:
             "series": load_sentiment_series(),
         },
         "sentiment_counts": sentiment_counts,
-        
+
         "model_eval": {
             "latest": load_model_eval_latest(),
             "series": load_model_eval_series(),
