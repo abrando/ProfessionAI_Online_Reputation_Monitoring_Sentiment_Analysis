@@ -121,18 +121,21 @@ def load_model_eval_series(limit: int = 200) -> List[Dict[str, Any]]:
 
 def build_stats_payload() -> Dict[str, Any]:
     sentiment_counts = load_sentiment_counts()
+    sentiment_series = load_sentiment_series()
 
     return {
         "total_requests": sentiment_counts.get("total", 0),
         "label_counts": sentiment_counts,
         "label_distribution": sentiment_counts,
 
+        "time_series": sentiment_series,
+
         "sentiment": {
             "summary": load_sentiment_summary(),
-            "series": load_sentiment_series(),
+            "series": sentiment_series,
         },
-        "sentiment_counts": sentiment_counts,
 
+        "sentiment_counts": sentiment_counts,
         "model_eval": {
             "latest": load_model_eval_latest(),
             "series": load_model_eval_series(),
