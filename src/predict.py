@@ -3,6 +3,7 @@ from typing import Dict, List
 from .model import load_sentiment_pipeline
 from .monitoring import record_prediction
 
+
 # Single text prediction
 def predict_single(text: str) -> Dict:
     sentiment_pipeline = load_sentiment_pipeline()
@@ -19,6 +20,7 @@ def predict_single(text: str) -> Dict:
     record_prediction(label=top_label, score=top_score, text=text)
 
     return {"label": top_label, "score": top_score, "probabilities": probabilities}
+
 
 # Batch text prediction
 def predict_batch(texts: List[str]) -> List[Dict]:

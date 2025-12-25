@@ -34,6 +34,7 @@ def record_prediction(label: str, score: float, text: str) -> None:
             }
         )
 
+
 # Helper function to stream CSV rows
 def _rows(path: Path):
     """Stream CSV rows as dicts; empty iterator if missing/unreadable."""
@@ -50,6 +51,7 @@ def _rows(path: Path):
                 yield r
     return gen()
 
+
 # Helper function to convert string to float
 def _f(x: Any) -> Optional[float]:
     try:
@@ -57,12 +59,14 @@ def _f(x: Any) -> Optional[float]:
     except Exception:
         return None
 
+
 # Helper function to convert string to int
 def _i(x: Any) -> Optional[int]:
     try:
         return None if x in (None, "") else int(float(x))
     except Exception:
         return None
+
 
 # Full scan of sentiment log to build stats
 def _scan_sentiment() -> Dict[str, Any]:
@@ -116,6 +120,7 @@ def _scan_sentiment() -> Dict[str, Any]:
 
     return {"g": g, "total": total, "trend": list(trend), "series": list(series)}
 
+
 # Return the latest model evaluation result
 def _model_eval_latest() -> Optional[Dict[str, Any]]:
     last = None
@@ -129,6 +134,7 @@ def _model_eval_latest() -> Optional[Dict[str, Any]]:
     last["n_samples"] = _i(last.get("n_samples"))
     return last
 
+
 # Return a series of model evaluation results
 def _model_eval_series(limit: int = 200) -> List[Dict[str, Any]]:
     tail = deque(maxlen=limit)
@@ -139,6 +145,7 @@ def _model_eval_series(limit: int = 200) -> List[Dict[str, Any]]:
         rr["n_samples"] = _i(rr.get("n_samples"))
         tail.append(rr)
     return list(tail)
+
 
 # Build the full stats payload for monitoring
 def build_stats_payload() -> Dict[str, Any]:
