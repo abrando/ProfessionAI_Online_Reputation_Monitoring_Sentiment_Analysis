@@ -1,17 +1,13 @@
 name: CD (Build & Push Docker to GHCR)
 
 on:
-  # Trigger CD only after CI has completed
   workflow_run:
-    workflows: ["CI"]    # must match the `name:` of ci.yml
+    workflows: ["CI"]
     types: [completed]
-
-  # Optional manual trigger
   workflow_dispatch:
 
 jobs:
   docker:
-    # Run only if CI succeeded and the commit is from main or a version tag
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       (
@@ -27,22 +23,48 @@ jobs:
       packages: write
 
     steps:
-      # Checkout the exact commit that was validated by CI
+      # Checkout the exact commit validated by CI (shallow clone saves space)
       - name: Checkout validated commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+          submodules: false
 
-      # Free disk space to avoid "no space left on device"
-      - name: Free disk space
+      # (Optional but very helpful) quick disk report
+      - name: Disk usage (before)
         run: |
+          df -h
+          du -xh $GITHUB_WORKSPACE --max-depth=2 | sort -h | tail -n 30 || true
+          docker system df || true
+
+      # Aggressive cleanup: remove large preinstalled toolchains + Docker caches
+      - name: Free disk space (aggressive)
+        run: |
+          set -eux
+          # These folders are huge on GitHub hosted runners and usually not needed for Docker builds
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+
+          # Docker cleanup
           docker system prune -af --volumes || true
           docker builder prune -af || true
+
+          # APT cleanup
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
 
+          df -h
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          # Enable BuildKit GC to cap local cache usage
+          buildkitd-flags: |
+            --oci-worker-gc=true
+            --oci-worker-gc-keepstorage=6GB
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -58,10 +80,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY}"
+          # GHCR/Docker requires lowercase repository names
+          IMAGE="ghcr.io/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           SHA_TAG="sha-${GITHUB_SHA::7}"
 
-          # Always publish the SHA tag
           TAGS="${IMAGE}:${SHA_TAG}"
 
           # If CI ran on main, also publish "latest"
@@ -87,3 +109,6 @@ jobs:
           tags: ${{ steps.dtags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
+          # Reduce extra artifacts/overhead
+          provenance: false
+          sbom: false

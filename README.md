@@ -58,7 +58,7 @@ This project provides:
                          ▼
       ┌─────────────────────────────────────┐
       │ GitHub Actions                      │
-      │ - CI pipeline                       │
+      │ - CI/CD pipeline                    │
       │ - Scheduled retraining check        │
       └─────────────────────────────────────┘
 
